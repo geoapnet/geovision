@@ -1,8 +1,14 @@
 [submodule "config"]
 	path = config
 	url = https://github.com/georchestra/datadir.git
-	branch = docker-24.0
+	branch = docker-master
 [submodule "resources/static"]
 	path = resources/static
 	url = https://github.com/georchestra/htdocs.git
 	branch = master
+[submodule "datahub"]
+	path = datahub
+	url = https://github.com/geoapnet/geovision-datahub.git
+[submodule "datafeeder"]
+	path = datafeeder
+	url = https://github.com/geoapnet/geovision-datafeeder.git
