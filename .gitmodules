@@ -6,9 +6,12 @@
 	path = resources/static
 	url = https://github.com/georchestra/htdocs.git
 	branch = master
+[submodule "landing-page"]
+	path = landing-page
+	url = https://youssefallalix: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@github.com/geoapnet/geovision-landingpage.git
 [submodule "datahub"]
 	path = datahub
-	url = https://github.com/geoapnet/geovision-datahub.git
+	url = https://youssefallalix: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@github.com/geoapnet/geovision-datahub.git
 [submodule "datafeeder"]
 	path = datafeeder
-	url = https://github.com/geoapnet/geovision-datafeeder.git
+	url = https://youssefallalix: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@github.com/geoapnet/geovision-datafeeder.git
