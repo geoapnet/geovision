@@ -1,3 +1,4 @@
+STATIC_HOST=static
 ANALYTICS_HOST=analytics
 CAS_HOST=cas
 CONSOLE_HOST=console

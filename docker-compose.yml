@@ -93,6 +93,7 @@ services:
       - .envs-ldap
       - .envs-hosts
       - .envs-database-georchestra
+    restart: always
 
 # uncomment for oauth 2.0
 #  cas:
@@ -118,28 +119,34 @@ services:
 #    restart: always
 
 # uncomment for legacy header https://hub.docker.com/r/georchestra/header
-#  header:
-#    image: georchestra/header:24.0.x
-#    healthcheck:
-#      test: ["CMD-SHELL", "curl -s -f http://localhost:8080/header/img/logo.png >/dev/null || exit 1"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 10
-#    depends_on:
-#      envsubst:
-#        condition: service_completed_successfully
-#    volumes:
-#      - georchestra_datadir:/etc/georchestra
-#    environment:
-#      - JAVA_OPTIONS=-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF
-#      - XMS=256M
-#      - XMX=512M
-#    env_file:
-#      - .envs-common
-#    restart: always
+  header:
+    #image: georchestra/header:24.0.x
+    build:
+      context: ./header
+      dockerfile: Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:80/header/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    depends_on:
+      envsubst:
+        condition: service_completed_successfully
+    volumes:
+      - georchestra_datadir:/etc/georchestra
+      # Bind mount the header configuration directory
+      - ./config/header:/etc/georchestra/header
+    environment:
+      - JAVA_OPTIONS=-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF -Djetty.port=80
+      - XMS=256M
+      - XMX=512M
+    env_file:
+      - .envs-common
+    restart: always
+    # Add debugging ports
 
   geoserver:
-    image: georchestra/geoserver:24.0.x
+    image: georchestra/geoserver:latest
     healthcheck:
       test: ["CMD-SHELL", "curl -s -f http://localhost:8080/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetCapabilities >/dev/null || exit 1"]
       interval: 30s
@@ -160,16 +167,20 @@ services:
       - JAVA_OPTIONS=-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF
       - XMS=256M
       - XMX=8G
-
+      - INSTALL_EXTENSIONS=true
+      - COMMUNITY_EXTENSIONS="ogcapi-features,ogcapi-images,ogcapi-maps,ogcapi-styles,ogcapi-tiles,stac-datastore"
     env_file:
       - .envs-database-georchestra
       - .envs-database-datafeeder
     restart: always
 
   console:
-    image: georchestra/console:24.0.x
+    #image: georchestra/console:24.0.x
+    build:
+      context: ./console/console
+      dockerfile: Dockerfile
     healthcheck:
-      test: ["CMD-SHELL", "curl -s -f http://localhost:8080/console/account/new >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -s -f http://localhost/console/account/new >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -178,12 +189,13 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      #rabbitmq:
+      #  condition: service_healthy
     volumes:
       - georchestra_datadir:/etc/georchestra
     environment:
-      - JAVA_OPTIONS=-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF
+      - CUSTOM_SCRIPTS_DIRECTORY=/etc/georchestra/console/scripts
+      - JAVA_OPTIONS=-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF -Djetty.port=80
       - XMS=256M
       - XMX=1G
     env_file:
@@ -214,7 +226,7 @@ services:
       - georchestra_datadir:/etc/georchestra
       - geonetwork_datadir:/mnt/geonetwork_datadir
     environment:
-      - JAVA_OPTIONS=-Duser.home=/tmp/jetty -Dgeorchestra.datadir=/etc/georchestra -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF
+      - JAVA_OPTIONS=-Duser.home=/tmp/jetty -Dgeorchestra.datadir=/etc/georchestra -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF -Djetty.port=8080
       - XMS=256M
       - XMX=6G
     env_file:
@@ -222,8 +234,25 @@ services:
       - .envs-database-georchestra
     restart: always
 
+  static:
+    image: nginx:stable
+    restart: unless-stopped
+    volumes:
+      - ./resources/static:/usr/share/nginx/html:ro
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static.tls=true"
+      - "traefik.http.routers.static.rule=Host(`localhost`)"
+      - "traefik.http.routers.static.priority=1"
+
   datahub:
-    image: geonetwork/geonetwork-ui-datahub:latest
+    image: geonetwork/geonetwork-ui-datahub:main-aa689838
+    #build:
+    #  context: ./datahub
+    #  dockerfile: Dockerfile
+    #  args:
+    #    - APP_NAME=datahub
     healthcheck:
       test: ["CMD-SHELL", "curl -s -f http://localhost:80/datahub/ >/dev/null || exit 1"]
       interval: 30s
@@ -238,7 +267,15 @@ services:
       CUSTOM_SCRIPTS_DIRECTORY: /etc/georchestra/datahub/scripts
     volumes:
       - georchestra_datadir:/etc/georchestra
+      - ./datahub/apps/datahub/src:/app/apps/datahub/src
+      - ./datahub/libs:/app/libs
+      - type: bind
+        source: ./config/
+        target: /etc/georchestra
     restart: always
+    ports:
+      - "4200:4200"
+      - "8008:80"
 
 # uncomment for  enabling analytics, available only with security-proxy
 #  analytics:
@@ -262,7 +299,10 @@ services:
 #    restart: always
 
   mapstore:
-    image: georchestra/mapstore:2023.02.02-geOrchestra
+    #image: georchestra/mapstore:2024.02.00-RC1-geOrchestra
+    build:
+      context: ./mapstore
+      dockerfile: Dockerfile
     healthcheck:
       test: ["CMD-SHELL", "curl -s -f http://localhost:8080/mapstore/configs/config.json >/dev/null || exit 1"]
       interval: 30s
@@ -329,7 +369,7 @@ services:
   import:
     image: georchestra/datafeeder-frontend:24.0.x
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -340,6 +380,9 @@ services:
       CUSTOM_SCRIPTS_DIRECTORY: /etc/georchestra/datafeeder/scripts/import
     volumes:
       - georchestra_datadir:/etc/georchestra
+      - type: bind
+        source: ./config/datafeeder/scripts/import
+        target: /etc/georchestra/datafeeder/scripts/import
     restart: always
 
   elasticsearch:

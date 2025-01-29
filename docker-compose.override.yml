@@ -19,7 +19,7 @@ services:
     volumes:
       - ./resources/ssl:/etc/ssl/traefik
 
-  georchestra-127-0-1-1.traefik.me:
+  localhost:
     image: traefik:2.9
     depends_on:
       traefik-me-certificate-downloader:
@@ -38,23 +38,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.rule=Host(`georchestra-127-0-1-1.traefik.me`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`))"
+      - "traefik.http.routers.traefik.rule=Host(`localhost`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`))"
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.middlewares=traefik-strip@docker"
       - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik"
-
-
-  static:
-    image: nginx:stable
-    restart: unless-stopped
-    volumes:
-      - ./resources/static:/usr/share/nginx/html:ro
-      - /etc/localtime:/etc/localtime:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.static.tls=true"
-      - "traefik.http.routers.static.rule=Host(`georchestra-127-0-1-1.traefik.me`)"
-      - "traefik.http.routers.static.priority=1"
 
   gateway:
     labels:
@@ -62,8 +49,9 @@ services:
       - "traefik.http.routers.gateway.tls=true"
       - "traefik.http.routers.gateway.priority=2"
       - >-
-        traefik.http.routers.gateway.rule=Host(`georchestra-127-0-1-1.traefik.me`) && (
+        traefik.http.routers.gateway.rule=Host(`localhost`) && (
         PathPrefix(`/analytics`)
+        || PathPrefix(`/`)
         || PathPrefix(`/datafeeder`)
         || PathPrefix(`/datahub`)
         || PathPrefix(`/console`)
@@ -97,7 +85,7 @@ services:
       # Add trailing slash to well-known apps
       - "traefik.http.routers.traefik-redirect.tls=true"
       - >-
-        traefik.http.routers.traefik-redirect.rule=Host(`georchestra-127-0-1-1.traefik.me`) && (
+        traefik.http.routers.traefik-redirect.rule=Host(`localhost`) && (
         Path(`/analytics`)
         || Path(`/datafeeder`)
         || Path(`/datahub`)
@@ -114,13 +102,15 @@ services:
       - "traefik.http.middlewares.add-trailing-slash.redirectregex.regex=^https?://(.+)/([^?]+)(\\?.*)?"
       - "traefik.http.middlewares.add-trailing-slash.redirectregex.replacement=https://$${1}/$${2}/$${3}"
       - "traefik.http.middlewares.add-trailing-slash.redirectregex.permanent=false"
+    ports:
+      - "8080:8080"
 
 # uncomment for oauth 2.0
 #  cas:
 #    labels:
 #      - "traefik.enable=true"
 #      - "traefik.http.routers.cas.tls=true"
-#      - "traefik.http.routers.cas.rule=Host(`georchestra-127-0-1-1.traefik.me`) && PathPrefix(`/cas`)"
+#      - "traefik.http.routers.cas.rule=Host(`localhost`) && PathPrefix(`/cas`)"
 
   smtp:
     image: camptocamp/smtp-sink:latest
@@ -144,13 +134,13 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webmail.tls=true"
-      - "traefik.http.routers.webmail.rule=Host(`georchestra-127-0-1-1.traefik.me`) && PathPrefix(`/webmail`)"
+      - "traefik.http.routers.webmail.rule=Host(`localhost`) && PathPrefix(`/webmail`)"
     restart: always
 
   ssh:
     image: georchestra/ssh_data:latest
-    ports:
-      - "2222:22"
+    #ports:
+    #  - "2222:22"
     volumes:
       - geoserver_geodata:/mnt/geoserver_geodata
     restart: always

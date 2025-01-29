@@ -21,3 +21,6 @@
 [submodule "console"]
 	path = console
 	url = https://youssefallalix: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@github.com/geoapnet/geovision-console.git
+[submodule "mapstore"]
+	path = mapstore
+	url = https://github.com/georchestra/mapstore2-georchestra.git

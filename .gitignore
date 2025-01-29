@@ -11,3 +11,5 @@
 .envs-*
 # ignore the certs files automatically downloaded on docker-compose up
 resources/ssl/traefik.me*
+
+conolse-old/
